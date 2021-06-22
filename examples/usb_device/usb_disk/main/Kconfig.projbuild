@@ -1,0 +1,18 @@
+menu "USB MSC Device Demo"
+
+    choice STORAGE_MEDIA
+        prompt "Storage Media"
+        default USE_EXTERNAL_SDCARD
+
+        config USE_INTERNAL_FLASH
+            bool "Use Internal Flash"
+
+        config USE_EXTERNAL_SDCARD
+            bool "Use External SDCard" 
+    endchoice
+
+    config DISK_BLOCK_SIZE
+        int "Disk Block Size"
+        default 512
+
+endmenu
