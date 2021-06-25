@@ -25,3 +25,6 @@ dependencies:
   led_indicator:
     git: https://github.com/iot-components/led_indicator.git
     public: true
+  tinyusb:
+    path: /home/libo/incubator/iot-component/tinyusb
+    public: true
