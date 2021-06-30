@@ -1,0 +1,28 @@
+version: "1.0.0" # Component version, required only for components pushed to the service
+targets: # List of supported targets (optional, if missing all targets are considered to be supported)
+  - esp32s2
+  - esp32s3
+description: usb camera project # Description (optional)
+url: https://github.com/iot-components/examples_esp32_s3_usb_otg_ev # Original repository (optional)
+dependencies:
+  # Required IDF version
+  idf:
+    version: ">=4.2"
+  bsp_esp32_s3_usb_otg_ev:
+    path: /home/libo/incubator/iot-component/bsp_esp32_s3_usb_otg_ev
+    public: true
+  bus:
+    path: /home/libo/incubator/iot-component/bus
+    public: true
+  button:
+    git: https://github.com/iot-components/button.git
+    public: true
+  uvc_stream:
+    path: /home/libo/incubator/iot-component/uvc_stream
+    public: true
+  display_screen:
+    path: /home/libo/incubator/iot-component/display_screen
+    public: true
+  decoder_jpeg_ijg:
+    path: /home/libo/incubator/iot-component/decoder_jpeg_ijg
+    public: true
