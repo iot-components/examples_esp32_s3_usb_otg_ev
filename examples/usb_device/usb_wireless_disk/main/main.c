@@ -41,10 +41,10 @@ static const char *TAG = "usb_msc_demo";
 
 // Mount path for the partition
 static sdmmc_card_t *mount_card = NULL;
-const char *base_path = "/disk";
+const char *disk_path = "/disk";
 
 /* Function to initialize SPIFFS */
-static esp_err_t init_fat(sdmmc_card_t **card_handle)
+static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
 {
     ESP_LOGI(TAG, "Mounting FAT filesystem");
     esp_err_t ret = ESP_FAIL;
@@ -132,6 +132,8 @@ static esp_err_t init_fat(sdmmc_card_t **card_handle)
     return ESP_OK;
 }
 
+extern esp_err_t start_file_server(const char *base_path);
+
 void app_main(void)
 {
     iot_board_init();
@@ -139,8 +141,10 @@ void app_main(void)
     iot_board_usb_device_set_power(true, true);
     /* Initialize file storage */
 
-    ESP_ERROR_CHECK(init_fat(&mount_card));
+    ESP_ERROR_CHECK(init_fat(&mount_card, disk_path));
     vTaskDelay(100 / portTICK_PERIOD_MS);
+    /* Start the file server */
+    ESP_ERROR_CHECK(start_file_server(disk_path));
 
     tinyusb_config_t tusb_cfg = {
         .descriptor = NULL,

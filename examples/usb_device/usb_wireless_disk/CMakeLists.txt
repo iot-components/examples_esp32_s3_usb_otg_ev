@@ -3,4 +3,4 @@
 cmake_minimum_required(VERSION 3.5)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(examples_esp32_s3_usb_otg_ev)
+project(usb_wireless_disk)
