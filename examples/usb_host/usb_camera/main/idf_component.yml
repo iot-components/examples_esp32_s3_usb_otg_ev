@@ -9,20 +9,20 @@ dependencies:
   idf:
     version: ">=4.2"
   bsp_esp32_s3_usb_otg_ev:
-    path: /home/libo/incubator/iot-component/bsp_esp32_s3_usb_otg_ev
+    git: https://github.com/iot-components/bsp_esp32_s3_usb_otg_ev.git
     public: true
   bus:
-    path: /home/libo/incubator/iot-component/bus
+    git: https://github.com/iot-components/bus.git
     public: true
   button:
     git: https://github.com/iot-components/button.git
     public: true
   uvc_stream:
-    path: /home/libo/incubator/iot-component/uvc_stream
+    git: https://github.com/iot-components/uvc_stream.git
     public: true
   display_screen:
-    path: /home/libo/incubator/iot-component/display_screen
+    git: https://github.com/iot-components/display_screen.git
     public: true
   decoder_jpeg_ijg:
-    path: /home/libo/incubator/iot-component/decoder_jpeg_ijg
+    git: https://github.com/iot-components/decoder_jpeg_ijg.git
     public: true

@@ -3,4 +3,5 @@ sdkconfig
 sdkconfig.old
 .vscode/
 dependencies.lock
+idf_component_local.yml
 managed_components/
