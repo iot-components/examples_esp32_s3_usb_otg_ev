@@ -89,7 +89,7 @@ then hardcode the related MACROS below
 #elif CONFIG_SIZE_160_120
 #define DEMO_FRAME_WIDTH 160
 #define DEMO_FRAME_HEIGHT 120
-#define DEMO_XFER_BUFFER_SIZE (25 * 1024) //Double buffer
+#define DEMO_XFER_BUFFER_SIZE (20 * 1024) //Double buffer
 #define DEMO_FRAME_INDEX DESCRIPTOR_FRAME_160_120_INDEX
 #define DEMO_FRAME_INTERVAL DESCRIPTOR_FRAME_30FPS_INTERVAL
 #endif
@@ -162,8 +162,8 @@ static void lcd_init(void)
         .bckl_active_level = 1,
         .offset_hor = 0,
         .offset_ver = 0,
-        .width = 240,
-        .height = 320,
+        .width = BOARD_LCD_WIDTH,
+        .height = BOARD_LCD_HEIGHT,
 #ifdef BOARD_LCD_ST7789_DIR_MIRROR
         .rotate = SCR_DIR_TBRL,
 #else
