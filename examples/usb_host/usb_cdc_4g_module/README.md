@@ -1,6 +1,6 @@
 ## USB CDC 4G Module 示例程序说明
 
-该示例程序可实现 ESP32-S 系列 SoC (已支持 ESP32-S2，ESP32-S3) 作为 USB 主机驱动 4G Cat.1 模组拨号上网，同时可开启 ESP32-S Wi-Fi AP 功能，分享互联网给物联网设备或手持设备，实现低成本 “中高速” 互联网接入。
+该示例程序可实现 ESP32-S 系列 SoC (已支持 ESP32-S2，ESP32-S3) 作为 USB 主机驱动 4G Cat.1 模组拨号上网，同时可开启 ESP32-S Wi-Fi AP 功能，分享互联网给物联网设备或手持设备，实现低成本 “中高速” 互联网接入。（完整示例请查看 [esp-iot-solution/tree/usb/add_usb_solutions](https://github.com/espressif/esp-iot-solution/tree/usb/add_usb_solutions/examples/usb/usb_cdc_4g_module)）
 
 **已实现功能：**
 
@@ -65,41 +65,15 @@
 
 ## 编译示例代码
 
-1. 确认 `ESP-IDF` 环境成功搭建，并按照说明文件切换到指定 commit [idf_usb_support_patch](../../usb/idf_usb_support_patch/readme.md)
-
-2. 确认已经完整下载 `ESP-IOT-SOLUTION` 仓库，并切换到 `usb/add_usb_solutions` 分支
-
-    ```bash
-    git clone -b usb/add_usb_solutions --recursive https://github.com/espressif/esp-iot-solution
-    ```
-
-3. 添加 `ESP-IDF` 环境变量，Linux 方法如下，其它平台请查阅 [Set up the environment variables](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#step-4-set-up-the-environment-variables)
-
-    ```bash
-    $HOME/esp/esp-idf/export.sh
-    ```
-
-4. 添加 `ESP-IOT-SOLUTION` 环境变量，Linux 方法如下:
-
-    ```bash
-    export IOT_SOLUTION_PATH=$HOME/esp/esp-iot-solution
-    ```
-
-5. 按照 Cat.1 模组特殊要求完成代码修改
-
-6. 设置编译目标为 `esp32s2` 或 `esp32s3`
-
-    ```bash
-    idf.py set-target esp32s2
-    ```
-
-7. 编译、下载、查看输出
-
-    ```bash
-    idf.py build flash monitor
-    ```
-
-8. 错误处理：
+1. 确认 ESP-IDF 环境成功搭建（Demo 测试推荐使用 master 分支）
+2. 安装 `ESP-IDF Component Manager`
+   1. `. ./export.sh` to add ESP-IDF environment values
+   2. `pip install idf-component-manager --upgrade`
+3. 设置编译目标为 `esp32-s2` 或 `esp32-s3`, `idf.py set-target esp32s2`
+4. 按照 Cat.1 模组特殊要求完成代码修改
+5. 编译、下载、并查看输出, `idf.py build flash monitor`
+6. 如果 `ESP-IDF Component Manager` 安装成功，编译过程中项目所需的组件将自动下载
+7.  错误处理：
     如果编译时输出 `fatal error: usb.h: No such file or directory`，请将 `esp-idf/components/usb/CMakeLists.txt` 按照以下修改:
 
     ```
