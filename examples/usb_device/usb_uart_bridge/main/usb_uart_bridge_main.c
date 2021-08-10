@@ -26,6 +26,7 @@
 #include "tinyusb.h"
 #include "tusb.h"
 #include "tusb_cdc_acm.h"
+#include "soc/usb_periph.h"
 #include "bsp_esp32_s3_usb_otg_ev.h"
 
 static const char *TAG = "USB2UART";
@@ -127,17 +128,24 @@ void tud_umount_cb(void)
     ESP_LOGW(__func__, "");
 }
 
+static bool s_in_suspend = false;
+static bool s_remote_wakeup_en = false;
+
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allows us to perform remote wakeup
 // USB Specs: Within 7ms, device must draw an average current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en)
 {
+    s_in_suspend = true;
+    s_remote_wakeup_en = remote_wakeup_en;
     ESP_LOGW(__func__, "remote_wakeup_en = %d", remote_wakeup_en);
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void)
 {
+    s_in_suspend = false;
+    USB0.dctl &= ~USB_RMTWKUPSIG_M;
     ESP_LOGW(__func__, "");
 }
 
@@ -290,6 +298,7 @@ static void usb_tx_task(void *arg)
         ulTaskNotifyTake(pdFALSE, 1);
         if (ESP_OK == usb_tx_ringbuf_read(data, USB_TX_BUF_SIZE, &rx_data_size)) {
             if(rx_data_size == 0) continue;
+            if(s_in_suspend && s_remote_wakeup_en) tud_remote_wakeup();
             size_t ret = tinyusb_cdcacm_write_queue(0, data, rx_data_size);
             ESP_LOGV(TAG, "usb tx data size = %d ret=%u", rx_data_size,ret);
             tud_cdc_n_write_flush(0);
