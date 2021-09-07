@@ -21,14 +21,22 @@ typedef struct {
     void (* deinit)(void);
 } user_app_t;
 
+extern void usb_camera_init(void);
+
 static user_app_t const _app_driver[] =
 {
     {
         .app_name = "USB Wireless Disk",
-        .icon_name = "icon_01.jpg"
-        .init = 
-
+        .icon_name = "icon_01.jpg",
+        .init = usb_camera_init,
+        .deinit = NULL,
     },
+    {
+        .app_name = "USB Camera",
+        .icon_name = "icon_03.jpg",
+        .init = usb_camera_init,
+        .deinit = NULL,
+    },
+};
 
-
-}
+const int _app_driver_count = sizeof(_app_driver) / sizeof(user_app_t);

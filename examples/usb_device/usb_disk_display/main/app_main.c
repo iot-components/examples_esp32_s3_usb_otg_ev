@@ -21,6 +21,7 @@
 #include "jpegd2.h"
 #include "vidoplayer.h"
 #include "esp_spiffs.h"
+#include "app.h"
 
 static const char *TAG = "usb_msc_demo";
 
@@ -325,14 +326,38 @@ static void button_menu_single_click_cb(void *arg)
     ESP_LOGI(TAG, "BTN MENU: BUTTON_SINGLE_CLICK");
 }
 
+static __NOINIT_ATTR int s_driver_index = -1;
+
 void app_main(void)
 {
+    const int driver_tail = _app_driver_count;
+    const int driver_head = 0;
+    printf("````dddddd =%d\n",s_driver_index);
     iot_board_init();
     iot_board_usb_set_mode(USB_DEVICE_MODE);
     iot_board_usb_device_set_power(false, false);
+
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_OK_ID), BUTTON_SINGLE_CLICK, button_ok_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_UP_ID), BUTTON_SINGLE_CLICK, button_up_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_DW_ID), BUTTON_SINGLE_CLICK, button_dw_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_SINGLE_CLICK, button_menu_single_click_cb);
     /* Initialize file storage */
     ui_queue = xQueueCreate( 1, sizeof(hmi_event_t));
     assert(ui_queue != NULL);
+    hmi_event_t current_event;
+
+    if (esp_reset_reason() == ESP_RST_SW && s_driver_index != -1) {
+        /* code */
+         _app_driver[s_driver_index].init();
+        while (xQueueReceive(ui_queue, &current_event, portMAX_DELAY)) {
+            if (current_event.id == BTN_CLICK_MENU){
+                s_driver_index = -1;
+                esp_restart();
+            }
+        }
+    } else {
+        s_driver_index = -1;
+    }
 
     esp_vfs_spiffs_conf_t spiffs_config = {
         .base_path              = "/spiffs",
@@ -343,8 +368,6 @@ void app_main(void)
 
     ESP_ERROR_CHECK(esp_vfs_spiffs_register(&spiffs_config));
 
-    init_fat(0, &mount_card, sd_path);
-    //init_fat(1, NULL, disk_path);
     vTaskDelay(100 / portTICK_PERIOD_MS);
 
     /* Initialize lcd driver for display, the driver comes from esp-iot-solution,
@@ -356,65 +379,39 @@ void app_main(void)
     uint8_t *lcd_buffer = (uint8_t *)heap_caps_malloc(DEMO_SPI_MAX_TRANFER_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     assert(lcd_buffer != NULL);
 
-#ifdef CONFIG_WIFI_HTTP_ACCESS
-    /* Wi-Fi init with configs from menuconfig */
-    iot_board_wifi_init();
-    /* Start the file server */
-    ESP_ERROR_CHECK(start_file_server(sd_path));
-#endif
-
-    tinyusb_config_t tusb_cfg = {
-        .descriptor = NULL,
-        .string_descriptor = NULL,
-        .external_phy = false // In the most cases you need to use a `false` value
-    };
-
-    tinyusb_config_msc_t msc_cfg = {
-        .pdrv = 0,
-    };
-
-    ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
-    ESP_ERROR_CHECK(tusb_msc_init(&msc_cfg));
-    ESP_LOGI(TAG, "USB initialization DONE");
-
     bool led_state = false;
     uint8_t *jpeg_buf = malloc(PIC_JPEG_MAX_SIZE);
     assert(jpeg_buf != NULL);
-    size_t pic_head = 1;
-    size_t pic_tail = 4;
-    size_t counter = pic_head;
     char file_name[64] = {0};
 
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_OK_ID), BUTTON_SINGLE_CLICK, button_ok_single_click_cb);
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_UP_ID), BUTTON_SINGLE_CLICK, button_dw_single_click_cb);
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_DW_ID), BUTTON_SINGLE_CLICK, button_up_single_click_cb);
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_SINGLE_CLICK, button_menu_single_click_cb);
-
-    hmi_event_t current_event;
     while (1) {
         if(xQueueReceive(ui_queue, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
-                counter = pic_head;
+                s_driver_index = -1;
+                esp_restart();
                 break;
             case BTN_CLICK_UP:
-                if (++counter > pic_tail)
-                counter = pic_head;
+                if (++s_driver_index >= driver_tail)
+                s_driver_index = driver_head;
                 break;
             case BTN_CLICK_DOWN:
-                if (--counter < pic_head)
-                counter = pic_tail;
+                if (--s_driver_index < driver_head)
+                s_driver_index = driver_tail - 1;
+                printf("dddddddddddddsssss %d",s_driver_index);
                 break;
             case BTN_CLICK_OK:
+                if(s_driver_index >= 0 && s_driver_index < _app_driver_count)
                 esp_restart();
                 break;
             default:
                 assert(0);
                 break;
         }
+        printf("dddddd =%d\n",s_driver_index);
         iot_board_led_all_set_state(led_state);
         led_state = !led_state;
-        sprintf(file_name, "/spiffs/icon/icon_%02d.jpg", counter);
+        sprintf(file_name, "/spiffs/icon/%s", _app_driver[s_driver_index].icon_name);
 
         FILE *fd = fopen(file_name, "r");
         if (fd == NULL) {

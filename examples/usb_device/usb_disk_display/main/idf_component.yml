@@ -28,3 +28,6 @@ dependencies:
   decoder_jpeg_ijg:
     path: /home/libo/incubator/iot-component/decoder_jpeg_ijg
     public: true
+  uvc_stream:
+    path: /home/libo/incubator/iot-component/uvc_stream
+    public: true
