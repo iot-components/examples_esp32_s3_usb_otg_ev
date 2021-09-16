@@ -23,6 +23,10 @@ menu "USB MSC Device Demo"
             bool "Use SDIO interface" 
     endchoice
 
+    config WIFI_HTTP_ACCESS
+        bool "enable wifi http file server access"
+        default y
+
     config DISK_BLOCK_SIZE
         int "Size used for format disk"
         default 512

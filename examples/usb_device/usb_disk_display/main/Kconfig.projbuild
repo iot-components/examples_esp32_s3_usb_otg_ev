@@ -31,5 +31,6 @@ menu "USB MSC Device Demo"
         int "Size used for format disk"
         default 512
 
-    orsource "./app/usb_camera/main/Kconfig.in"
+    orsource "./app/usb_camera/Kconfig.in"
+    orsource "./app/usb_wireless_disk/Kconfig.in"
 endmenu

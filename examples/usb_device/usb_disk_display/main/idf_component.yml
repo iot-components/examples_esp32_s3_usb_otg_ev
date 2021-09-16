@@ -25,6 +25,9 @@ dependencies:
   display_screen:
     path: /home/libo/incubator/iot-component/display_screen
     public: true
+  display_painter:
+    path: /home/libo/incubator/iot-component/display_painter
+    public: true
   decoder_jpeg_ijg:
     path: /home/libo/incubator/iot-component/decoder_jpeg_ijg
     public: true

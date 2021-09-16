@@ -13,8 +13,6 @@
 
 #include "driver/sdmmc_defs.h"
 #include "driver/sdmmc_types.h"
-#include "driver/sdspi_host.h"
-#include "driver/spi_common.h"
 #include "sdmmc_cmd.h"
 #include "assert.h"
 #include "bsp_esp32_s3_usb_otg_ev.h"
@@ -22,32 +20,19 @@
 
 static const char *TAG = "usb_msc_demo";
 
-#ifdef CONFIG_USE_EXTERNAL_SDCARD
-#ifdef CONFIG_SDCARD_INTFC_SPI
-#define BOARD_SDCARD_SPI_CS_PIN BOARD_SDCARD_CD
-#elif defined(CONFIG_SDCARD_INTFC_SDIO) && defined(SOC_SDMMC_HOST_SUPPORTED)
-#define BOARD_SDCARD_SDIO_CLK_PIN BOARD_SDCARD_SDIO_CLK
-#define BOARD_SDCARD_SDIO_CMD_PIN BOARD_SDCARD_SDIO_CMD
-#define BOARD_SDCARD_SDIO_DO_PIN BOARD_SDCARD_SDIO_DATA0
-#define BOARD_SDCARD_SDIO_DATA_WIDTH 1
-#include "driver/sdmmc_host.h"
-#else
-#error "Not supported interface"
-#endif
-#endif
-
 // Mount path for the partition
 static sdmmc_card_t *mount_card = NULL;
 const char *disk_path = "/disk";
 
 /* Function to initialize SPIFFS */
-static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
+/* Function to initialize SPIFFS */
+static esp_err_t init_fat(uint8_t if_internal, sdmmc_card_t **card_handle, const char* base_path)
 {
     ESP_LOGI(TAG, "Mounting FAT filesystem");
     esp_err_t ret = ESP_FAIL;
     // To mount device we need name of device partition, define base_path
     // and allow format partition in case if it is new one and was not formated before
-#ifdef CONFIG_USE_INTERNAL_FLASH
+if(if_internal) {
     // Handle of the wear levelling library instance
     wl_handle_t wl_handle_1 = WL_INVALID_HANDLE;
     ESP_LOGI(TAG, "using internal flash");
@@ -62,8 +47,8 @@ static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(ret));
         return ESP_FAIL;
     }
-
-#elif defined CONFIG_USE_EXTERNAL_SDCARD
+    return ESP_OK;
+} else {
     sdmmc_card_t *card;
     ESP_LOGI(TAG, "using external sdcard");
     esp_vfs_fat_sdmmc_mount_config_t mount_config = {
@@ -77,7 +62,7 @@ static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
     host.slot = SPI3_HOST;
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = BOARD_SDCARD_SPI_CS_PIN;
+    slot_config.gpio_cs = BOARD_SDCARD_CD;
     slot_config.host_id = host.slot;
 
     ret = esp_vfs_fat_sdspi_mount(base_path, &host, &slot_config, &mount_config, &card);
@@ -85,13 +70,17 @@ static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
 #elif defined(CONFIG_SDCARD_INTFC_SDIO) && defined(SOC_SDMMC_HOST_SUPPORTED)
     ESP_LOGI(TAG, "Using SDIO Interface");
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+    //host.max_freq_khz = SDMMC_FREQ_26M;
 
     // This initializes the slot without card detect (CD) and write protect (WP) signals.
     // Modify slot_config.gpio_cd and slot_config.gpio_wp if your board has these signals.
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
-    slot_config.clk = BOARD_SDCARD_SDIO_CLK_PIN;
-    slot_config.cmd = BOARD_SDCARD_SDIO_CMD_PIN;
-    slot_config.d0 = BOARD_SDCARD_SDIO_DO_PIN;
+    slot_config.clk = BOARD_SDCARD_SDIO_CLK;
+    slot_config.cmd = BOARD_SDCARD_SDIO_CMD;
+    slot_config.d0 = BOARD_SDCARD_SDIO_DATA0;
+    slot_config.d1 = BOARD_SDCARD_SDIO_DATA1;
+    slot_config.d2 = BOARD_SDCARD_SDIO_DATA2;
+    slot_config.d3 = BOARD_SDCARD_SDIO_DATA3;
     // To use 1-line SD mode, change this to 1:
     slot_config.width = BOARD_SDCARD_SDIO_DATA_WIDTH;
     // Enable internal pullups on enabled pins. The internal pullups
@@ -124,8 +113,7 @@ static esp_err_t init_fat(sdmmc_card_t **card_handle, const char* base_path)
         *card_handle = card;
     }
 
-#endif
-
+}
     return ESP_OK;
 }
 
@@ -138,10 +126,13 @@ void app_main(void)
     iot_board_usb_device_set_power(true, true);
     /* Initialize file storage */
 
-    ESP_ERROR_CHECK(init_fat(&mount_card, disk_path));
+    ESP_ERROR_CHECK(init_fat(1, &mount_card, disk_path));
     vTaskDelay(100 / portTICK_PERIOD_MS);
     /* Start the file server */
+#ifdef CONFIG_WIFI_HTTP_ACCESS
+    ESP_ERROR_CHECK(iot_board_wifi_init(void));
     ESP_ERROR_CHECK(start_file_server(disk_path));
+#endif
 
     tinyusb_config_t tusb_cfg = {
         .descriptor = NULL,
