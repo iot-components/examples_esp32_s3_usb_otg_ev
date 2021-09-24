@@ -78,12 +78,11 @@ void app_main(void)
 
     if (esp_reset_reason() == ESP_RST_SW && s_driver_index != 0) {
         /* code */
-         _app_driver[s_driver_index].init();
+        _app_driver[s_driver_index].init();
     } else {
         s_driver_index = 0;
+        _app_driver[0].init();
     }
-
-    _app_driver[0].init();
 
     bool led_state = false;
     while (1) {

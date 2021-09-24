@@ -2,6 +2,7 @@ version: "2.3.1" # Component version, required only for components pushed to the
 targets: # List of supported targets (optional, if missing all targets are considered to be supported)
   - esp32
   - esp32s2
+  - esp32s3
 description: Test project # Description (optional)
 url: https://github.com/espressif/esp-idf # Original repository (optional)
 dependencies:
@@ -14,17 +15,20 @@ dependencies:
     path: /home/libo/incubator/iot-component/bsp_esp32_s3_usb_otg_ev
     public: true
   bus:
-    git: https://github.com/iot-components/bus.git
+    path: /home/libo/incubator/iot-component/bus
     public: true
   display_screen:
-    git: https://github.com/iot-components/display_screen.git
+    path: /home/libo/incubator/iot-component/display_screen
     public: true
   button:
-    git: https://github.com/iot-components/button.git
+    path: /home/libo/incubator/iot-component/button
     public: true
   led_indicator:
-    git: https://github.com/iot-components/led_indicator.git
+    path: /home/libo/incubator/iot-component/led_indicator
     public: true
   tinyusb:
     path: /home/libo/incubator/iot-component/tinyusb
+    public: true
+  display_painter:
+    path: /home/libo/incubator/iot-component/display_painter
     public: true

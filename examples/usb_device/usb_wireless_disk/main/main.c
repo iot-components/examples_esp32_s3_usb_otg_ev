@@ -41,7 +41,7 @@ if(if_internal) {
         .max_files = 9,
         .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
     };
-    ret = esp_vfs_fat_spiflash_mount(base_path, "storage", &mount_config, &wl_handle_1);
+    ret = esp_vfs_fat_spiflash_mount(base_path, NULL, &mount_config, &wl_handle_1);
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(ret));

@@ -109,6 +109,12 @@ static const char *TAG = "uvc_demo";
 static scr_driver_t s_lcd;
 static scr_info_t s_lcd_info;
 static bool s_lcd_inited = false;
+static TaskHandle_t s_task_hdl = NULL;
+QueueHandle_t usb_camera_queue_hdl = NULL;
+
+#define EVENT_TASK_KILL_BIT_0	( 1 << 0 )
+#define EVENT_TASK_KILLED_BIT_1	( 1 << 1 )
+static EventGroupHandle_t s_event_group_hdl = NULL;
 
 static void *_malloc(size_t size)
 {
@@ -145,16 +151,15 @@ static void frame_cb(uvc_frame_t *frame, void *ptr)
     }
 }
 
-void usb_camera_init(void)
+void usb_camera_task( void *pvParameters )
 {
     //_usb_otg_router_to_internal_phy();
     iot_board_init();
     iot_board_usb_set_mode(USB_HOST_MODE);
     iot_board_usb_device_set_power(true, true);
-
-    /* Initialize lcd driver for display, the driver comes from esp-iot-solution,
-    for test only, users can implement their driver for a specified lcd controller*/
-    //lcd_init();
+    EventGroupHandle_t s_event_group_hdl = (EventGroupHandle_t) pvParameters;
+    usb_camera_queue_hdl = xQueueCreate(1, sizeof(hmi_event_t));
+    assert(usb_camera_queue_hdl != NULL);
 
     /* malloc a buffer for RGB565 data, as 320*240*2 = 153600B,
     here malloc a smaller buffer refresh lcd with steps */
@@ -229,9 +234,51 @@ void usb_camera_init(void)
         uvc_streaming_start(frame_cb, (void *)(lcd_buffer));
     }
 
-    while (1) {
-        /* task monitor code if necessary */
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-    }
+    hmi_event_t current_event;
+    while (!(xEventGroupGetBits(s_event_group_hdl) & EVENT_TASK_KILL_BIT_0)) {
+        if(xQueueReceive(usb_camera_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
+        switch (current_event.id) {
+            case BTN_CLICK_MENU:
+                esp_restart();
+                break;
+            case BTN_CLICK_UP:
+                break;
+            case BTN_CLICK_DOWN:
+                break;
+            case BTN_CLICK_OK:
+                break;
+            default:
+                break;
+        }
+    };
+    QueueHandle_t queue_hdl = usb_camera_queue_hdl;
+    usb_camera_queue_hdl = NULL;
+    vQueueDelete(queue_hdl);
+    uvc_streaming_stop();
+    free(lcd_buffer);
+    free(xfer_buffer_a);
+    free(xfer_buffer_b);
+    free(frame_buffer);
+    xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1);
+    xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
+    s_task_hdl = NULL;
+    vTaskDelete(s_task_hdl);
+}
 
+void usb_camera_init(void)
+{
+    if (s_task_hdl == NULL)
+    s_event_group_hdl = xEventGroupCreate();
+    xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0 | EVENT_TASK_KILLED_BIT_1);
+    xTaskCreate(usb_camera_task, "camera", 4096, NULL, 2, &s_task_hdl);
+    ESP_LOGI(TAG, "Camera APP Inited");
+}
+
+void usb_camera_deinit(void)
+{
+    xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
+    xEventGroupWaitBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1, TRUE, TRUE, portMAX_DELAY);
+    vEventGroupDelete(s_event_group_hdl);
+    s_event_group_hdl = NULL;
+    ESP_LOGW(TAG, "Camera APP Deinited");
 }

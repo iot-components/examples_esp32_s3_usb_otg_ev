@@ -22,12 +22,18 @@ typedef struct {
     void (* init)(void);
     void (* deinit)(void);
     QueueHandle_t *p_queue_hdl;
+    struct {
+        uint16_t restart_before_init: 1;
+        uint16_t restart_after_deinit: 1;
+    } flags;
 } user_app_t;
 
 extern void usb_camera_init(void);
+extern void usb_camera_deinit(void);
 extern void avi_player_init(void);
 extern void keyboard_init(void);
 extern void app_menu_init(void);
+extern void app_menu_deinit(void);
 extern void usb_wireless_disk_init(void);
 extern QueueHandle_t usb_camera_queue_hdl;
 extern QueueHandle_t app_menu_queue_hdl;
@@ -49,17 +55,19 @@ static user_app_t const _app_driver[] =
 {
     {
         .app_name = "app menu",
-        .icon_name = "esp_ok.jpg",
+        .icon_name = "esp_logo.jpg",
         .init = app_menu_init,
-        .deinit = NULL,
+        .deinit = app_menu_deinit,
         .p_queue_hdl = &app_menu_queue_hdl,
     },
     {
         .app_name = "USB Camera",
         .icon_name = "icon_camera.jpg",
         .init = usb_camera_init,
-        .deinit = NULL,
-        .p_queue_hdl = NULL,
+        .deinit = usb_camera_deinit,
+        .p_queue_hdl = &usb_camera_queue_hdl,
+        .flags.restart_before_init = false,
+        .flags.restart_after_deinit = false,
     },
     {
         .app_name = "USB Wireless Disk",
@@ -68,13 +76,20 @@ static user_app_t const _app_driver[] =
         .deinit = NULL,
         .p_queue_hdl = NULL,
     },
-    {
-        .app_name = "Keyboard Host",
-        .icon_name = "icon_keyboard.jpg",
-        .init = keyboard_init,
-        .deinit = NULL,
-        .p_queue_hdl = &keyboard_queue_hdl,
-    },
+    // {
+    //     .app_name = "USB Wireless Disk",
+    //     .icon_name = "icon_file.jpg",
+    //     .init = usb_wireless_disk_init,
+    //     .deinit = NULL,
+    //     .p_queue_hdl = NULL,
+    // },
+    // {
+    //     .app_name = "Keyboard Host",
+    //     .icon_name = "icon_keyboard.jpg",
+    //     .init = keyboard_init,
+    //     .deinit = NULL,
+    //     .p_queue_hdl = &keyboard_queue_hdl,
+    // },
     // {
     //     .app_name = "AVI Player",
     //     .icon_name = "icon_video.jpg",

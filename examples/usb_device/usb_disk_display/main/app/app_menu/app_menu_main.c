@@ -19,6 +19,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "freertos/event_groups.h"
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
 #include "esp_spiffs.h"
@@ -32,17 +33,22 @@ static char *TAG = "app_menu";
 #define CONFIG_LCD_BUF_HIGHT 48
 
 #define DEMO_SPI_MAX_TRANFER_SIZE (CONFIG_LCD_BUF_WIDTH * CONFIG_LCD_BUF_HIGHT * 2 + 64)
-#define PIC_JPEG_MAX_SIZE (25 * 1024)
+#define PIC_JPEG_MAX_SIZE (45 * 1024)
+
+#define EVENT_TASK_KILL_BIT_0	( 1 << 0 )
+#define EVENT_TASK_KILLED_BIT_1	( 1 << 1 )
 
 __NOINIT_ATTR int s_driver_index = 0;
 QueueHandle_t app_menu_queue_hdl = NULL;
-static TaskHandle_t task_hdl = NULL;
+static TaskHandle_t s_task_hdl = NULL;
+static EventGroupHandle_t s_event_group_hdl = NULL;
 
 void app_menu_task( void *pvParameters )
 {
     const int driver_tail = _app_driver_count;
     const int driver_head = 1;
     hmi_event_t current_event;
+    EventGroupHandle_t s_event_group_hdl = (EventGroupHandle_t) pvParameters;
 
     esp_vfs_spiffs_conf_t spiffs_config = {
         .base_path              = "/spiffs",
@@ -75,12 +81,12 @@ void app_menu_task( void *pvParameters )
         }
     }
 
-    while (1) {
+    while (!(xEventGroupGetBits(s_event_group_hdl) & EVENT_TASK_KILL_BIT_0)) {
         if(xQueueReceive(app_menu_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
                 s_driver_index = 0;
-                esp_restart();
+                //esp_restart();
                 break;
             case BTN_CLICK_UP:
                 if (++s_driver_index >= driver_tail)
@@ -110,17 +116,33 @@ void app_menu_task( void *pvParameters )
         mjpegdraw(jpeg_buf, read_bytes, lcd_buffer, CONFIG_LCD_BUF_WIDTH, CONFIG_LCD_BUF_HIGHT, board_lcd_draw_image, 240, 240);
         ESP_LOGI(TAG, "file_name: %s, fd: %p, read_bytes: %d, free_heap: %d", file_name, fd, read_bytes, esp_get_free_heap_size());
     }
+
+    QueueHandle_t queue_hdl = app_menu_queue_hdl;
+    app_menu_queue_hdl = NULL;
+    vQueueDelete(queue_hdl);
     free(lcd_buffer);
     free(jpeg_buf);
     esp_vfs_spiffs_unregister(NULL);
+    xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1);
+    xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
+    s_task_hdl = NULL;
+    vTaskDelete(s_task_hdl);
 }
 
 void app_menu_init(void)
 {
-    if (task_hdl == NULL)
-    xTaskCreate(app_menu_task, "menu", 4096, NULL, 2, &task_hdl);
+    if (s_task_hdl == NULL)
+    s_event_group_hdl = xEventGroupCreate();
+    xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0 | EVENT_TASK_KILLED_BIT_1);
+    xTaskCreate(app_menu_task, "menu", 4096, (void *)s_event_group_hdl, 2, &s_task_hdl);
+    ESP_LOGI(TAG, "Menu APP Inited");
 }
 
 void app_menu_deinit()
 {
+    xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
+    xEventGroupWaitBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1, TRUE, TRUE, portMAX_DELAY);
+    vEventGroupDelete(s_event_group_hdl);
+    s_event_group_hdl = NULL;
+    ESP_LOGW(TAG, "Menu APP Deinited");
 }

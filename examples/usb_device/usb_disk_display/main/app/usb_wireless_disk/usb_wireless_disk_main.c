@@ -10,7 +10,7 @@
 #include "nvs_flash.h"
 #include "esp_vfs.h"
 #include "esp_vfs_fat.h"
-
+#include "esp_wifi.h"
 #include "driver/sdmmc_defs.h"
 #include "driver/sdmmc_types.h"
 #include "sdmmc_cmd.h"
@@ -20,6 +20,7 @@
 #include "tusb_msc.h"
 #include "driver/sdmmc_defs.h"
 #include "driver/sdmmc_types.h"
+#include "qrcode.h"
 
 static const char *TAG = "usb_msc_demo";
 
@@ -81,7 +82,7 @@ static esp_err_t init_flash_fat(const char* base_path)
         .max_files = 9,
         .allocation_unit_size = CONFIG_WL_SECTOR_SIZE
     };
-    ret = esp_vfs_fat_spiflash_mount(base_path, "udisk", &mount_config, &wl_handle_1);
+    ret = esp_vfs_fat_spiflash_mount(base_path, NULL, &mount_config, &wl_handle_1);
 
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to mount FATFS (%s)", esp_err_to_name(ret));
@@ -89,6 +90,10 @@ static esp_err_t init_flash_fat(const char* base_path)
     }
     return ESP_OK;
 }
+
+#define QR_BUF_LEN_MAX ((((10) * 4 + 17) * ((10) * 4 + 17) + 7) / 8 + 1) // Calculates the number of bytes needed to store any Version 10 QR Code
+static char s_wifi_qr_buffer[QR_BUF_LEN_MAX] = {0};
+extern void start_dns_server(void);
 
 void usb_wireless_disk_init(void)
 {
@@ -102,8 +107,6 @@ void usb_wireless_disk_init(void)
     } else {
         display_card_info(card_hdl);
     }
-    DISPLAY_PRINTF_LINE("SD", 6, COLOR_BLUE, "Access files from");
-    DISPLAY_PRINTF_LINE("SD", 7, COLOR_BLUE, "USB or Wi-Fi AP");
     iot_board_usb_set_mode(USB_DEVICE_MODE);
     /* Initialize file storage */
 
@@ -111,6 +114,7 @@ void usb_wireless_disk_init(void)
 #ifdef CONFIG_WIFI_HTTP_ACCESS
     ESP_ERROR_CHECK(iot_board_wifi_init());
     ESP_ERROR_CHECK(start_file_server(BOARD_SDCARD_BASE_PATH));
+    //start_dns_server();
 #endif
 
     tinyusb_config_t tusb_cfg = {
@@ -125,5 +129,17 @@ void usb_wireless_disk_init(void)
 
     ESP_ERROR_CHECK(tinyusb_driver_install(&tusb_cfg));
     ESP_ERROR_CHECK(tusb_msc_init(&msc_cfg));
+
+    DISPLAY_PRINTF_LINE("SD", 6, COLOR_BLUE, "Access files from");
+    DISPLAY_PRINTF_LINE("SD", 7, COLOR_BLUE, "USB or Wi-Fi AP");
+    vTaskDelay(500 / portTICK_RATE_MS);
+
+    wifi_config_t wifi_cfg;
+    esp_wifi_get_config(WIFI_IF_AP, &wifi_cfg);
+    snprintf(s_wifi_qr_buffer, sizeof(s_wifi_qr_buffer), "WIFI:S:%s;T:%s;P:%s;H:%s;", wifi_cfg.ap.ssid, wifi_cfg.ap.password[0]?"WPA":"", wifi_cfg.ap.password, wifi_cfg.ap.ssid_hidden?"true":"false");
+    esp_qrcode_config_t qr_cfg = PAINTER_QRCODE_CONFIG_DEFAULT();
+    ESP_LOGI(TAG, "Scan below QR Code to Connect Wi-Fi\n");
+    esp_qrcode_generate(&qr_cfg, s_wifi_qr_buffer);
+
     ESP_LOGI(TAG, "USB initialization DONE");
 }
