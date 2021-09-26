@@ -72,7 +72,7 @@ _Static_assert(sizeof(hid_mouse_event_t) == 4, "Incorrect hid_mouse_event_t size
 _Static_assert(sizeof(hid_keyboard_event_t) == 8, "Incorrect hid_keyboard_event_t size");
 
 static TaskHandle_t task_hdl = NULL;
-QueueHandle_t keyboard_queue_hdl = NULL;
+QueueHandle_t g_keyboard_queue_hdl = NULL;
 
 void print_keyboard_events(hid_device *device)
 {

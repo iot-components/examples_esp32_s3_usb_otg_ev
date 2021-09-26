@@ -28,18 +28,18 @@
 
 #define DEMO_SPI_MAX_TRANFER_SIZE (CONFIG_LCD_BUF_WIDTH * CONFIG_LCD_BUF_HIGHT * 2 + 64)
 static TaskHandle_t task_hdl = NULL;
-QueueHandle_t avi_player_queue_hdl = NULL;
+QueueHandle_t g_avi_player_queue_hdl = NULL;
 
 void avi_player_task( void *pvParameters )
 {
     hmi_event_t current_event;
-    avi_player_queue_hdl = xQueueCreate( 5, sizeof(hmi_event_t));
-    assert(avi_player_queue_hdl != NULL);
+    g_avi_player_queue_hdl = xQueueCreate( 5, sizeof(hmi_event_t));
+    assert(g_avi_player_queue_hdl != NULL);
     uint8_t *lcd_buffer = (uint8_t *)heap_caps_malloc(DEMO_SPI_MAX_TRANFER_SIZE, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     assert(lcd_buffer != NULL);
     avi_play( BOARD_SDCARD_BASE_PATH "/badapple/badapple_color.avi", lcd_buffer, CONFIG_LCD_BUF_WIDTH, CONFIG_LCD_BUF_HIGHT, board_lcd_draw_image, 240, 240);
     while (1) {
-        if(xQueueReceive(avi_player_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
+        if(xQueueReceive(g_avi_player_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
 
@@ -63,7 +63,7 @@ void avi_player_task( void *pvParameters )
 void avi_player_init(void)
 {
     if (task_hdl == NULL)
-    xTaskCreate(avi_player_task, "avi_player", 4096, NULL, 2, &task_hdl);
+    xTaskCreate(avi_player_task, "avi_player", 4096, NULL, TASK_APP_PRIO_MIN, &task_hdl);
 }
 
 void avi_player_deinit(void)

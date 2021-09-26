@@ -433,6 +433,17 @@ static esp_err_t delete_post_handler(httpd_req_t *req)
     return ESP_OK;
 }
 
+// HTTP Error (404) Handler - Redirects all requests to the root page
+esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err)
+{
+    httpd_resp_set_status(req, "307 Temporary Redirect");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_send(req, "Redirect to the captive portal", HTTPD_RESP_USE_STRLEN);
+
+    ESP_LOGI(TAG, "Redirecting to root");
+    return ESP_OK;
+}
+
 /* Function to start the file server */
 esp_err_t start_file_server(const char *base_path)
 {
@@ -465,6 +476,7 @@ esp_err_t start_file_server(const char *base_path)
      * allow the same handler to respond to multiple different
      * target URIs which match the wildcard scheme */
     config.uri_match_fn = httpd_uri_match_wildcard;
+    config.lru_purge_enable = true;
 
     ESP_LOGI(TAG, "Starting HTTP Server");
     if (httpd_start(&server, &config) != ESP_OK) {
@@ -498,6 +510,8 @@ esp_err_t start_file_server(const char *base_path)
         .user_ctx  = server_data    // Pass server data as context
     };
     httpd_register_uri_handler(server, &file_delete);
+
+    httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);
 
     return ESP_OK;
 }

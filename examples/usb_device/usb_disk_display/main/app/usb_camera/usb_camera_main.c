@@ -27,10 +27,11 @@
 #include "driver/uart.h"
 #include "esp_log.h"
 #include "esp_spiffs.h"
-
+#include "hal/usb_hal.h"
 #include "spi_bus.h"
 #include "st7789.h"
 #include "screen_driver.h"
+#include "display_printf.h"
 #include "uvc_stream.h"
 #include "jpegd2.h"
 #include "bsp_esp32_s3_usb_otg_ev.h"
@@ -110,7 +111,7 @@ static scr_driver_t s_lcd;
 static scr_info_t s_lcd_info;
 static bool s_lcd_inited = false;
 static TaskHandle_t s_task_hdl = NULL;
-QueueHandle_t usb_camera_queue_hdl = NULL;
+QueueHandle_t g_usb_camera_queue_hdl = NULL;
 
 #define EVENT_TASK_KILL_BIT_0	( 1 << 0 )
 #define EVENT_TASK_KILLED_BIT_1	( 1 << 1 )
@@ -151,15 +152,30 @@ static void frame_cb(uvc_frame_t *frame, void *ptr)
     }
 }
 
-void usb_camera_task( void *pvParameters )
+void printf_camera_state(char *state)
 {
-    //_usb_otg_router_to_internal_phy();
-    iot_board_init();
+    DISPLAY_PRINTF_LINE("SD", 3, COLOR_RED, "...%s", state);
+}
+
+void usb_camera_task(void *pvParameters)
+{
     iot_board_usb_set_mode(USB_HOST_MODE);
     iot_board_usb_device_set_power(true, true);
+    gpio_set_level(BOARD_IO_DEV_VBUS_EN, true);//WARNING: open two power source
+    usb_hal_context_t hal = {
+        .use_external_phy = false
+    };
+    usb_hal_init(&hal);
+    DISPLAY_PRINTF_INIT((scr_driver_t *)iot_board_get_handle(BOARD_LCD_ID));
+    DISPLAY_PRINTF_SET_FONT(Font16);
+    DISPLAY_PRINTF_CLEAR();
+    DISPLAY_PRINTF_LINE("SD", 2, COLOR_RED, "Wait Camera Connect");
+    DISPLAY_PRINTF_LINE("SD", 3, COLOR_BLUE, "...Waiting");
+    DISPLAY_PRINTF_LINE("SD", 6, COLOR_RED, "Power Source:");
+    DISPLAY_PRINTF_LINE("SD", 7, COLOR_BLUE, "Battery or USB DEV");
     EventGroupHandle_t s_event_group_hdl = (EventGroupHandle_t) pvParameters;
-    usb_camera_queue_hdl = xQueueCreate(1, sizeof(hmi_event_t));
-    assert(usb_camera_queue_hdl != NULL);
+    g_usb_camera_queue_hdl = xQueueCreate(1, sizeof(hmi_event_t));
+    assert(g_usb_camera_queue_hdl != NULL);
 
     /* malloc a buffer for RGB565 data, as 320*240*2 = 153600B,
     here malloc a smaller buffer refresh lcd with steps */
@@ -236,10 +252,9 @@ void usb_camera_task( void *pvParameters )
 
     hmi_event_t current_event;
     while (!(xEventGroupGetBits(s_event_group_hdl) & EVENT_TASK_KILL_BIT_0)) {
-        if(xQueueReceive(usb_camera_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
+        if(xQueueReceive(g_usb_camera_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
-                esp_restart();
                 break;
             case BTN_CLICK_UP:
                 break;
@@ -251,8 +266,8 @@ void usb_camera_task( void *pvParameters )
                 break;
         }
     };
-    QueueHandle_t queue_hdl = usb_camera_queue_hdl;
-    usb_camera_queue_hdl = NULL;
+    QueueHandle_t queue_hdl = g_usb_camera_queue_hdl;
+    g_usb_camera_queue_hdl = NULL;
     vQueueDelete(queue_hdl);
     uvc_streaming_stop();
     free(lcd_buffer);
@@ -261,23 +276,27 @@ void usb_camera_task( void *pvParameters )
     free(frame_buffer);
     xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1);
     xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
+    iot_board_usb_set_mode(USB_DEVICE_MODE);
+    iot_board_usb_device_set_power(false, false);
+    gpio_set_level(BOARD_IO_DEV_VBUS_EN, false);
     s_task_hdl = NULL;
     vTaskDelete(s_task_hdl);
 }
 
 void usb_camera_init(void)
 {
-    if (s_task_hdl == NULL)
+    if (s_task_hdl != NULL) return;
     s_event_group_hdl = xEventGroupCreate();
     xEventGroupClearBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0 | EVENT_TASK_KILLED_BIT_1);
-    xTaskCreate(usb_camera_task, "camera", 4096, NULL, 2, &s_task_hdl);
+    xTaskCreate(usb_camera_task, "camera", 4096, (void *)s_event_group_hdl, TASK_APP_PRIO_MIN, &s_task_hdl);
     ESP_LOGI(TAG, "Camera APP Inited");
 }
 
 void usb_camera_deinit(void)
 {
+    if (s_task_hdl == NULL) return;
     xEventGroupSetBits(s_event_group_hdl, EVENT_TASK_KILL_BIT_0);
-    xEventGroupWaitBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1, TRUE, TRUE, portMAX_DELAY);
+    xEventGroupWaitBits(s_event_group_hdl, EVENT_TASK_KILLED_BIT_1, true, true, portMAX_DELAY);
     vEventGroupDelete(s_event_group_hdl);
     s_event_group_hdl = NULL;
     ESP_LOGW(TAG, "Camera APP Deinited");

@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #pragma once
+
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 
@@ -21,6 +23,8 @@ typedef struct {
     char* icon_name;
     void (* init)(void);
     void (* deinit)(void);
+    void (* hide)(void);
+    void (* show)(void);
     QueueHandle_t *p_queue_hdl;
     struct {
         uint16_t restart_before_init: 1;
@@ -28,17 +32,25 @@ typedef struct {
     } flags;
 } user_app_t;
 
+#define TASK_APP_PRIO_MAX (configMAX_PRIORITIES-10)
+#define TASK_APP_PRIO_MIN 1
+
 extern void usb_camera_init(void);
 extern void usb_camera_deinit(void);
 extern void avi_player_init(void);
 extern void keyboard_init(void);
 extern void app_menu_init(void);
 extern void app_menu_deinit(void);
+extern void app_manual_init(void);
+extern void app_manual_deinit(void);
 extern void usb_wireless_disk_init(void);
-extern QueueHandle_t usb_camera_queue_hdl;
-extern QueueHandle_t app_menu_queue_hdl;
-extern QueueHandle_t avi_player_queue_hdl;
-extern QueueHandle_t keyboard_queue_hdl;
+extern void usb_wireless_disk_deinit(void);
+extern QueueHandle_t g_usb_camera_queue_hdl;
+extern QueueHandle_t g_app_menu_queue_hdl;
+extern QueueHandle_t g_app_manual_queue_hdl;
+extern QueueHandle_t g_avi_player_queue_hdl;
+extern QueueHandle_t g_keyboard_queue_hdl;
+extern QueueHandle_t g_disk_queue_hdl;
 
 typedef enum {
     BTN_CLICK_MENU = 0,
@@ -58,44 +70,45 @@ static user_app_t const _app_driver[] =
         .icon_name = "esp_logo.jpg",
         .init = app_menu_init,
         .deinit = app_menu_deinit,
-        .p_queue_hdl = &app_menu_queue_hdl,
+        .p_queue_hdl = &g_app_menu_queue_hdl,
     },
     {
         .app_name = "USB Camera",
         .icon_name = "icon_camera.jpg",
         .init = usb_camera_init,
         .deinit = usb_camera_deinit,
-        .p_queue_hdl = &usb_camera_queue_hdl,
-        .flags.restart_before_init = false,
-        .flags.restart_after_deinit = false,
+        .p_queue_hdl = &g_usb_camera_queue_hdl,
+        // .flags.restart_before_init = false,
+        // .flags.restart_after_deinit = false,
     },
     {
         .app_name = "USB Wireless Disk",
         .icon_name = "icon_file.jpg",
         .init = usb_wireless_disk_init,
-        .deinit = NULL,
-        .p_queue_hdl = NULL,
+        .deinit = usb_wireless_disk_deinit,
+        .p_queue_hdl = &g_disk_queue_hdl,
+        .flags.restart_after_deinit = true,
     },
-    // {
-    //     .app_name = "USB Wireless Disk",
-    //     .icon_name = "icon_file.jpg",
-    //     .init = usb_wireless_disk_init,
-    //     .deinit = NULL,
-    //     .p_queue_hdl = NULL,
-    // },
+    {
+        .app_name = "app manual",
+        .icon_name = "icon_usermanual.jpg",
+        .init = app_manual_init,
+        .deinit = app_manual_deinit,
+        .p_queue_hdl = &g_app_manual_queue_hdl,
+    },
     // {
     //     .app_name = "Keyboard Host",
     //     .icon_name = "icon_keyboard.jpg",
     //     .init = keyboard_init,
     //     .deinit = NULL,
-    //     .p_queue_hdl = &keyboard_queue_hdl,
+    //     .p_queue_hdl = &g_keyboard_queue_hdl,
     // },
     // {
     //     .app_name = "AVI Player",
     //     .icon_name = "icon_video.jpg",
     //     .init = avi_player_init,
     //     .deinit = NULL,
-    //     .p_queue_hdl = &avi_player_queue_hdl,
+    //     .p_queue_hdl = &g_avi_player_queue_hdl,
     // },
 };
 
