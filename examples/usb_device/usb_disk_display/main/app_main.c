@@ -9,11 +9,15 @@
 #include "nvs_flash.h"
 #include "hal/usb_hal.h"
 
+#include "esp_system.h"
+#include "esp_spi_flash.h"
 #include "bsp_esp32_s3_usb_otg_ev.h"
 #include "spi_bus.h"
 #include "app.h"
+#include "esp_app_format.h"
+#include "esp_ota_ops.h"
 
-static const char *TAG = "usb_msc_demo";
+static const char *TAG = "app_main";
 QueueHandle_t s_default_queue_hdl = NULL;
 
 #define CONFIG_LCD_BUF_WIDTH 240
@@ -75,6 +79,34 @@ static void button_menu_single_click_cb(void *arg)
         }
     }
     ESP_LOGI(TAG, "BTN MENU: BUTTON_SINGLE_CLICK");
+}
+
+static void button_menu_double_click_cb(void *arg)
+{
+    hmi_event_t item_id = {.id = BTN_DOUBLE_CLICK_MENU};
+    if (s_default_queue_hdl) {
+        xQueueSend(s_default_queue_hdl, ( void *) &item_id, portMAX_DELAY);
+    }
+    for (size_t i = 0; i < _app_driver_count; i++) {
+        if( (_app_driver[i].p_queue_hdl) && *(_app_driver[i].p_queue_hdl) ) {
+            xQueueSend(*(_app_driver[i].p_queue_hdl), ( void * ) &item_id, 0);
+        }
+    }
+    ESP_LOGI(TAG, "BTN MENU: BUTTON_DOUBLE_CLICK");
+}
+
+static void button_menu_long_press_cb(void *arg)
+{
+    hmi_event_t item_id = {.id = BTN_LONG_PRESS_MENU};
+    if (s_default_queue_hdl) {
+        xQueueSend(s_default_queue_hdl, ( void *) &item_id, portMAX_DELAY);
+    }
+    for (size_t i = 0; i < _app_driver_count; i++) {
+        if( (_app_driver[i].p_queue_hdl) && *(_app_driver[i].p_queue_hdl) ) {
+            xQueueSend(*(_app_driver[i].p_queue_hdl), ( void * ) &item_id, 0);
+        }
+    }
+    ESP_LOGI(TAG, "BTN MENU: BUTTON_LONG_PRESS_CLICK");
 }
 
 __NOINIT_ATTR int s_driver_index = 0;
@@ -140,10 +172,14 @@ void app_manager_task( void *pvParameters)
         if(xQueueReceive(s_default_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
+                break;
+            case BTN_DOUBLE_CLICK_MENU:
                 if (s_active_driver_index != 0) {
                     app_kill(s_active_driver_index);
                     app_launch(0);
                 }
+                break;
+            case BTN_LONG_PRESS_MENU:
                 break;
             case BTN_CLICK_UP:
                 if (++s_driver_index >= driver_tail)
@@ -166,8 +202,41 @@ void app_manager_task( void *pvParameters)
     }
 }
 
+static void _print_info()
+{
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    printf("\n");
+    ESP_LOGW(TAG, "------------------Chip information------------");
+    ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
+            CONFIG_IDF_TARGET,
+            chip_info.cores,
+            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+
+    ESP_LOGI(TAG, "silicon revision %d, ", chip_info.revision);
+
+    ESP_LOGI(TAG, "%dMB %s flash", spi_flash_get_chip_size() / (1024 * 1024),
+            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+
+    ESP_LOGI(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
+
+    ESP_LOGW(TAG, "-----------------MAC information-----------------");
+    const esp_app_desc_t *app_desc = esp_ota_get_app_description();
+    uint8_t derived_mac_addr[6] = {0};
+    ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_SOFTAP));
+    ESP_LOGI("SoftAP MAC:", "%02x:%02x:%02x:%02x:%02x:%02x",
+             derived_mac_addr[0], derived_mac_addr[1], derived_mac_addr[2],
+             derived_mac_addr[3], derived_mac_addr[4], derived_mac_addr[5]);
+    ESP_LOGW(TAG, "---------------Application information--------------");
+    ESP_LOGI(TAG, "Project name:     %s", app_desc->project_name);
+    ESP_LOGI(TAG, "App version:      %s", app_desc->version);
+    printf("\n");
+}
+
 void app_main(void)
 {
+    _print_info();
     iot_board_init();
     iot_board_usb_set_mode(USB_DEVICE_MODE);
     iot_board_usb_device_set_power(false, false);
@@ -182,6 +251,8 @@ void app_main(void)
     iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_UP_ID), BUTTON_SINGLE_CLICK, button_up_single_click_cb);
     iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_DW_ID), BUTTON_SINGLE_CLICK, button_dw_single_click_cb);
     iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_SINGLE_CLICK, button_menu_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_DOUBLE_CLICK, button_menu_double_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_LONG_PRESS_HOLD, button_menu_long_press_cb);
 
     if (esp_reset_reason() == ESP_RST_SW && s_driver_index > 0 && s_driver_index < _app_driver_count) {
         ESP_LOGI(TAG, "Restart to run APP: %s",  _app_driver[s_active_driver_index].app_name);

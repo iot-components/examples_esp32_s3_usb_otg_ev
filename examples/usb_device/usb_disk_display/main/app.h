@@ -45,18 +45,28 @@ extern void app_manual_init(void);
 extern void app_manual_deinit(void);
 extern void usb_wireless_disk_init(void);
 extern void usb_wireless_disk_deinit(void);
+extern void usb_hid_mouse_init(void);
+extern void usb_hid_mouse_deinit(void);
+extern void usb_hid_keyboard_init(void);
+extern void usb_hid_keyboard_deinit(void);
 extern QueueHandle_t g_usb_camera_queue_hdl;
 extern QueueHandle_t g_app_menu_queue_hdl;
 extern QueueHandle_t g_app_manual_queue_hdl;
 extern QueueHandle_t g_avi_player_queue_hdl;
 extern QueueHandle_t g_keyboard_queue_hdl;
 extern QueueHandle_t g_disk_queue_hdl;
+extern QueueHandle_t g_usb_hid_mouse_hdl;
+extern QueueHandle_t g_usb_hid_keyboard_hdl;
 
 typedef enum {
     BTN_CLICK_MENU = 0,
+    BTN_DOUBLE_CLICK_MENU,
+    BTN_LONG_PRESS_MENU,
     BTN_CLICK_UP,
     BTN_CLICK_DOWN,
     BTN_CLICK_OK,
+    USR_RESERVED_1,
+    USR_RESERVED_2
 } hmi_event_id_t;
 
 typedef struct {
@@ -90,12 +100,29 @@ static user_app_t const _app_driver[] =
         .flags.restart_after_deinit = true,
     },
     {
+        .app_name = "Mouse Device",
+        .icon_name = "icon_mouse.jpg",
+        .init = usb_hid_mouse_init,
+        .deinit = usb_hid_mouse_deinit,
+        .p_queue_hdl = &g_usb_hid_mouse_hdl,
+        .flags.restart_after_deinit = true,
+    },
+    {
+        .app_name = "Keyboard Device",
+        .icon_name = "icon_keyboard.jpg",
+        .init = usb_hid_keyboard_init,
+        .deinit = usb_hid_keyboard_deinit,
+        .p_queue_hdl = &g_usb_hid_keyboard_hdl,
+        .flags.restart_after_deinit = true,
+    },
+    {
         .app_name = "app manual",
         .icon_name = "icon_usermanual.jpg",
         .init = app_manual_init,
         .deinit = app_manual_deinit,
         .p_queue_hdl = &g_app_manual_queue_hdl,
     },
+
     // {
     //     .app_name = "Keyboard Host",
     //     .icon_name = "icon_keyboard.jpg",

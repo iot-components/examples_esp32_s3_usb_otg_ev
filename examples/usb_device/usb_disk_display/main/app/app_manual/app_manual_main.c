@@ -69,6 +69,7 @@ void app_manual_task( void *pvParameters )
         if(xQueueReceive(g_app_manual_queue_hdl, &current_event, portMAX_DELAY) != pdTRUE) continue;
         switch (current_event.id) {
             case BTN_CLICK_MENU:
+                if(++current_info_page > max_info_page) current_info_page = 0;
                 break;
             case BTN_CLICK_UP:
                 if(++current_info_page > max_info_page) current_info_page = 0;

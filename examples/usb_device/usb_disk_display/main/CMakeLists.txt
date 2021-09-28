@@ -1,5 +1,6 @@
 idf_component_register(
-    SRC_DIRS "." "./app/usb_camera" "./app/avi_player" "./app/app_menu" "./app/usb_wireless_disk" "./app/app_manual"#"./app/app_hid_master"
+    SRC_DIRS "." "./app/usb_camera" "./app/avi_player" "./app/app_menu" "./app/usb_wireless_disk" "./app/app_manual"
+    "./app/app_hid_device"#"./app/app_hid_master"
     INCLUDE_DIRS "." "./app" #"~/incubator/iot-component/examples_esp32_s3_usb_otg_ev/examples/usb_host/usb_hid_host/prebuild/components/hid/include"
     #"~/incubator/iot-component/examples_esp32_s3_usb_otg_ev/examples/usb_host/usb_hid_host/prebuild/components/hid/hidapi/hidapi"
     EMBED_FILES "./app/usb_wireless_disk/favicon.ico" "./app/usb_wireless_disk/upload_script.html"

@@ -169,6 +169,7 @@ void usb_camera_task(void *pvParameters)
     DISPLAY_PRINTF_INIT((scr_driver_t *)iot_board_get_handle(BOARD_LCD_ID));
     DISPLAY_PRINTF_SET_FONT(Font16);
     DISPLAY_PRINTF_CLEAR();
+    DISPLAY_PRINTF_LINE("SD", 1, COLOR_GREEN, "USB Camera");
     DISPLAY_PRINTF_LINE("SD", 2, COLOR_RED, "Wait Camera Connect");
     DISPLAY_PRINTF_LINE("SD", 3, COLOR_BLUE, "...Waiting");
     DISPLAY_PRINTF_LINE("SD", 6, COLOR_RED, "Power Source:");

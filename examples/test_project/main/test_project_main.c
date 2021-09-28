@@ -22,6 +22,10 @@
 #include "display_printf.h"
 #include "display_painter.h"
 #include "tusb_msc.h"
+#include "esp_app_format.h"
+#include "esp_ota_ops.h"
+#include "esp_system.h"
+#include "esp_spi_flash.h"
 
 static const char *TAG = "test_code";
 QueueHandle_t event_queue_hdl = NULL;
@@ -424,8 +428,9 @@ void test_task(void *pvParameters)
             switch (test_pro) {
                 case TEST_LCD:
                     /* code */
+                    ESP_LOGW(TAG, "Test LCD Start");
                     test_result = _test_lcd();
-
+                    ESP_LOGI(TAG, "Test LCD Stop");
                     if (test_result == 0) {
                         test_pro = TEST_BUTTON;
                     }
@@ -433,7 +438,9 @@ void test_task(void *pvParameters)
                     break;
 
                 case TEST_BUTTON:
+                    ESP_LOGW(TAG, "Test Button Start");
                     test_result = _test_button();
+                    ESP_LOGI(TAG, "Test Button Stop");
 
                     if (test_result == 0) {
                         test_pro = TEST_LED;
@@ -442,7 +449,9 @@ void test_task(void *pvParameters)
                     break;
 
                 case TEST_LED:
+                    ESP_LOGW(TAG, "Test LED Start");
                     test_result = _test_led();
+                    ESP_LOGI(TAG, "Test LED Stop");
 
                     if (test_result == 0) {
                         test_pro = TEST_USB_DEV;
@@ -451,7 +460,9 @@ void test_task(void *pvParameters)
                     break;
 
                 case TEST_USB_DEV:
+                    ESP_LOGW(TAG, "Test USB Start");
                     test_result = _test_usb_dev();
+                    ESP_LOGI(TAG, "Test USB Stop");
 
                     if (test_result == 0) {
                         test_pro = TEST_SUCCESS;
@@ -494,8 +505,41 @@ void test_task(void *pvParameters)
     }
 }
 
+static void _print_info()
+{
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+    printf("\n");
+    ESP_LOGW(TAG, "------------------Chip information------------");
+    ESP_LOGI(TAG, "This is %s chip with %d CPU core(s), WiFi%s%s, ",
+            CONFIG_IDF_TARGET,
+            chip_info.cores,
+            (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
+            (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
+
+    ESP_LOGI(TAG, "silicon revision %d, ", chip_info.revision);
+
+    ESP_LOGI(TAG, "%dMB %s flash", spi_flash_get_chip_size() / (1024 * 1024),
+            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
+
+    ESP_LOGI(TAG, "Minimum free heap size: %d bytes", esp_get_minimum_free_heap_size());
+
+    ESP_LOGW(TAG, "-----------------MAC information-----------------");
+    const esp_app_desc_t *app_desc = esp_ota_get_app_description();
+    uint8_t derived_mac_addr[6] = {0};
+    ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_SOFTAP));
+    ESP_LOGI("SoftAP MAC:", "%02x:%02x:%02x:%02x:%02x:%02x",
+             derived_mac_addr[0], derived_mac_addr[1], derived_mac_addr[2],
+             derived_mac_addr[3], derived_mac_addr[4], derived_mac_addr[5]);
+    ESP_LOGW(TAG, "---------------Application information--------------");
+    ESP_LOGI(TAG, "Project name:     %s", app_desc->project_name);
+    ESP_LOGI(TAG, "App version:      %s", app_desc->version);
+    printf("\n");
+}
+
 void app_main(void)
 {
+    _print_info();
     iot_board_init();
     //iot_board_usb_device_set_power(true, true);
 
@@ -518,8 +562,8 @@ void app_main(void)
     assert(event_queue_hdl != NULL);
 
     iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_OK_ID), BUTTON_SINGLE_CLICK, button_ok_single_click_cb);
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_UP_ID), BUTTON_SINGLE_CLICK, button_dw_single_click_cb);
-    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_DW_ID), BUTTON_SINGLE_CLICK, button_up_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_DW_ID), BUTTON_SINGLE_CLICK, button_dw_single_click_cb);
+    iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_UP_ID), BUTTON_SINGLE_CLICK, button_up_single_click_cb);
     iot_board_button_register_cb(iot_board_get_handle(BOARD_BTN_MN_ID), BUTTON_SINGLE_CLICK, button_menu_single_click_cb);
 
     vTaskDelay(200 / portTICK_PERIOD_MS);

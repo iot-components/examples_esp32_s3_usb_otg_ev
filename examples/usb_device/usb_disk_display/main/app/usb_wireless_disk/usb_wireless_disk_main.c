@@ -82,6 +82,7 @@ static void display_info(int page_index)
         DISPLAY_PRINTF_CLEAR();
         sdmmc_card_t *card_hdl = (sdmmc_card_t *)iot_board_get_handle(BOARD_SDCARD_ID);
         if(card_hdl == NULL) {
+            DISPLAY_PRINTF_LINE("SD", 1, COLOR_GREEN, "USB Wireless Disk");
             DISPLAY_PRINTF_LINE("SD", 2, COLOR_RED, "SDCard Not Found");
             DISPLAY_PRINTF_LINE("SD", 3, COLOR_RED, "Or Not Supported!");
             DISPLAY_PRINTF_LINE("SD", 5, COLOR_YELLOW, "Using internal Flash");}
