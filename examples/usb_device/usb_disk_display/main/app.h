@@ -83,6 +83,14 @@ static user_app_t const _app_driver[] =
         .p_queue_hdl = &g_app_menu_queue_hdl,
     },
     {
+        .app_name = "USB Wireless Disk",
+        .icon_name = "icon_flash.jpg",
+        .init = usb_wireless_disk_init,
+        .deinit = usb_wireless_disk_deinit,
+        .p_queue_hdl = &g_disk_queue_hdl,
+        .flags.restart_after_deinit = true,
+    },
+    {
         .app_name = "USB Camera",
         .icon_name = "icon_camera.jpg",
         .init = usb_camera_init,
@@ -90,14 +98,6 @@ static user_app_t const _app_driver[] =
         .p_queue_hdl = &g_usb_camera_queue_hdl,
         // .flags.restart_before_init = false,
         // .flags.restart_after_deinit = false,
-    },
-    {
-        .app_name = "USB Wireless Disk",
-        .icon_name = "icon_file.jpg",
-        .init = usb_wireless_disk_init,
-        .deinit = usb_wireless_disk_deinit,
-        .p_queue_hdl = &g_disk_queue_hdl,
-        .flags.restart_after_deinit = true,
     },
     {
         .app_name = "Mouse Device",
